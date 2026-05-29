@@ -8,6 +8,9 @@
     "start": "node src/server.js",
     "seed:admin": "node src/scripts/seed-admin.js",
     "recompute:reputation": "node src/scripts/recompute-reputation.js",
+    "rebuild:votes": "node src/scripts/rebuild-vote-counters.js",
+    "rebuild:question-counters": "node src/scripts/rebuild-question-counters.js",
+    "rebuild:comment-counters": "node src/scripts/rebuild-comment-counters.js",
     "test": "node --test"
   },
   "dependencies": {

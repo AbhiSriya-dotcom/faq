@@ -85,6 +85,8 @@ const commentSchema = new mongoose.Schema(
     // User IDs @-mentioned in the comment. Drives notification fan-out.
     mentions: [String],
 
+    // Cache fields. Source of truth is the votes collection; only voting code
+    // and the vote-counter rebuild script may mutate these values.
     upvotes: {
       type: Number,
       default: 0,
@@ -95,12 +97,14 @@ const commentSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // Denormalized score (upvotes - downvotes) for cheap sorted queries.
+    // Cache field (upvotes - downvotes) for cheap sorted queries.
     score: {
       type: Number,
       default: 0,
     },
 
+    // Cache field. Source of truth is comments(parent_id); only comment
+    // lifecycle/moderation code and the comment-counter rebuild script may mutate it.
     reply_count: {
       type: Number,
       default: 0,

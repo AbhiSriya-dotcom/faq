@@ -5,9 +5,9 @@ import mongoose from 'mongoose'
  * votes
  *
  * Source of truth for upvotes/downvotes across questions, answers, and comments.
- * The denormalized `upvotes`, `downvotes`, and `score` on each target document
- * are what you query for display — this collection enforces one-vote-per-user
- * and allows audit/counter rebuilding.
+ * Source of truth for who voted and for rebuilding vote counters.
+ * Cached `upvotes`, `downvotes`, and `score` fields on target documents are
+ * display caches owned by vote controllers/services and rebuild scripts only.
  *
  *   value:  1 = upvote
  *   value: -1 = downvote
