@@ -114,6 +114,8 @@ const answerSchema = new mongoose.Schema(
       default: 'public',
     },
 
+    // Cache fields. Source of truth is the votes collection; only voting code
+    // and the vote-counter rebuild script may mutate these values.
     upvotes: {
       type: Number,
       default: 0,
@@ -124,13 +126,15 @@ const answerSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // Denormalized score (upvotes - downvotes). Used for cheap sorted queries.
+    // Cache field (upvotes - downvotes). Used for cheap sorted queries.
     score: {
       type: Number,
       default: 0,
       index: true,
     },
 
+    // Cache fields. Source of truth is comments(answer_id); only comment
+    // lifecycle/moderation code and the comment-counter rebuild script may mutate them.
     comment_count: {
       type: Number,
       default: 0,

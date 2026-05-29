@@ -118,6 +118,8 @@ const questionSchema = new mongoose.Schema(
       default: false,
     },
 
+    // Cache field. Source of truth is the votes collection; only voting code
+    // and the vote-counter rebuild script may mutate this value.
     upvotes: {
       type: Number,
       default: 0,
@@ -133,10 +135,14 @@ const questionSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Cache field. Source of truth is answers(question_id); only answer
+    // lifecycle code and the question-counter rebuild script may mutate it.
     answer_count: {
       type: Number,
       default: 0,
     },
+    // Cache field derived from visible resolver/admin/expert answers.
+    // Maintained by answer lifecycle/moderation code and rebuild scripts.
     has_expert_answer: {
       type: Boolean,
       default: false,
