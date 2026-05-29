@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import Modal from '../../../components/Modal/Modal'
+import Button from '../../../components/Button/Button'
+import Input from '../../../components/Input/Input'
 import { authLogin } from './service'
 
 function LoginModal({ isOpen, onClose, onLogin }) {
@@ -53,12 +55,9 @@ function LoginModal({ isOpen, onClose, onLogin }) {
           </p>
 
           <form className="flex flex-col gap-4" onSubmit={handleResetPassword}>
-            <label className="sr-only" htmlFor="reset-user-id">
-              User ID
-            </label>
-            <input
+            <label className="sr-only" htmlFor="reset-user-id">User ID</label>
+            <Input
               autoComplete="username"
-              className="h-14 w-full rounded-lg border border-[#d1d5db] bg-white px-4 text-[14px] outline-none shadow-sm transition placeholder:text-[#9da1a1] focus:border-black focus:ring-1 focus:ring-black"
               id="reset-user-id"
               onChange={(event) => setUserId(event.target.value)}
               placeholder="Enter your user ID"
@@ -67,23 +66,21 @@ function LoginModal({ isOpen, onClose, onLogin }) {
               value={userId}
             />
 
-            <button
-              className="mt-2 min-h-14 rounded-lg bg-[#242633] px-5 text-[14px] font-medium text-white transition hover:bg-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 focus:ring-offset-[#f3f4f5]"
-              type="submit"
-            >
+            <Button type="submit" variant="primary" className="mt-2 w-full min-h-14">
               Send Reset Link
-            </button>
+            </Button>
 
-            <button
-              className="text-center text-[12px] font-medium text-[#6b7280] transition hover:text-black"
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full justify-center"
               onClick={() => {
                 setError('')
                 setIsForgotPassword(false)
               }}
-              type="button"
             >
               Back to Login
-            </button>
+            </Button>
           </form>
         </>
       ) : (
@@ -99,12 +96,9 @@ function LoginModal({ isOpen, onClose, onLogin }) {
           )}
 
           <form className="flex flex-col gap-4" onSubmit={handleLogin}>
-            <label className="sr-only" htmlFor="login-user-id">
-              User ID
-            </label>
-            <input
+            <label className="sr-only" htmlFor="login-user-id">User ID</label>
+            <Input
               autoComplete="username"
-              className="h-14 w-full rounded-lg border border-[#d1d5db] bg-white px-4 text-[14px] outline-none shadow-sm transition placeholder:text-[#9da1a1] focus:border-black focus:ring-1 focus:ring-black"
               id="login-user-id"
               onChange={(event) => setUserId(event.target.value)}
               placeholder="Enter your user ID"
@@ -113,12 +107,9 @@ function LoginModal({ isOpen, onClose, onLogin }) {
               value={userId}
             />
 
-            <label className="sr-only" htmlFor="login-password">
-              Password
-            </label>
-            <input
+            <label className="sr-only" htmlFor="login-password">Password</label>
+            <Input
               autoComplete="current-password"
-              className="h-14 w-full rounded-lg border border-[#d1d5db] bg-white px-4 text-[14px] outline-none shadow-sm transition placeholder:text-[#9da1a1] focus:border-black focus:ring-1 focus:ring-black"
               id="login-password"
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Enter your password"
@@ -127,24 +118,26 @@ function LoginModal({ isOpen, onClose, onLogin }) {
               value={password}
             />
 
-            <button
-              className="self-end text-[12px] font-medium text-[#6b7280] transition hover:text-black"
+            <Button
+              type="button"
+              variant="ghost"
+              className="self-end"
               onClick={() => {
                 setError('')
                 setIsForgotPassword(true)
               }}
-              type="button"
             >
               Forgot Password?
-            </button>
+            </Button>
 
-            <button
-              className="min-h-14 rounded-lg bg-[#242633] px-5 text-[14px] font-medium text-white transition hover:bg-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 focus:ring-offset-[#f3f4f5] disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isSubmitting}
+            <Button
               type="submit"
+              variant="primary"
+              className="w-full min-h-14 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isSubmitting}
             >
               {isSubmitting ? 'Logging in...' : 'Login'}
-            </button>
+            </Button>
           </form>
         </>
       )}

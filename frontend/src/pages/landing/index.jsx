@@ -5,6 +5,8 @@ import {
   Award,
   BriefcaseBusiness,
   CalendarClock,
+  ChevronsDownUp,
+  ChevronsUpDown,
   ClipboardCheck,
   FileText,
   Info,
@@ -48,9 +50,20 @@ function TagIcon({ name, className }) {
   return <IconComponent aria-hidden="true" className={className} strokeWidth={1.8} />
 }
 
+function Tooltip({ label, children }) {
+  return (
+    <div className="group/tip relative">
+      {children}
+      <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-[#191c1d] px-2 py-1 text-[11px] leading-none text-white opacity-0 transition-opacity group-hover/tip:opacity-100">
+        {label}
+      </span>
+    </div>
+  )
+}
+
 function Landing() {
   const [sections, setSections] = useState([])
-  const [openKey, setOpenKey] = useState('')
+  const [openKeys, setOpenKeys] = useState(new Set())
   const [query, setQuery] = useState('')
   const [activeSectionId, setActiveSectionId] = useState('')
   const [pageProgress, setPageProgress] = useState(0)
@@ -63,6 +76,26 @@ function Landing() {
   function handleLogin(user) {
     setUser(user)
     navigate(user.role === 'ADMIN' ? '/admin' : '/user')
+  }
+
+  function toggleFaq(accordionKey) {
+    setOpenKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(accordionKey)) next.delete(accordionKey)
+      else next.add(accordionKey)
+      return next
+    })
+  }
+
+  function toggleSection(section) {
+    const keys = section.faqs.map((faq) => `${section.id}:${faq.id}`)
+    const allOpen = keys.length > 0 && keys.every((k) => openKeys.has(k))
+    setOpenKeys((prev) => {
+      const next = new Set(prev)
+      if (allOpen) keys.forEach((k) => next.delete(k))
+      else keys.forEach((k) => next.add(k))
+      return next
+    })
   }
 
   function handleHeaderButtonClick() {
@@ -85,8 +118,10 @@ function Landing() {
 
         setSections(nextSections)
         setActiveSectionId(nextSections[0]?.id || '')
-        setOpenKey(
-          nextSections[0]?.faqs[0] ? `${nextSections[0].id}:${nextSections[0].faqs[0].id}` : '',
+        setOpenKeys(
+          nextSections[0]?.faqs[0]
+            ? new Set([`${nextSections[0].id}:${nextSections[0].faqs[0].id}`])
+            : new Set(),
         )
         setStatus('ready')
       } catch (error) {
@@ -99,7 +134,7 @@ function Landing() {
         }
 
         setSections([])
-        setOpenKey('')
+        setOpenKeys(new Set())
         setActiveSectionId('')
         setPageProgress(0)
         setStatus('error')
@@ -277,12 +312,12 @@ function Landing() {
           <label className="relative mb-8 block w-full" htmlFor="faq-search">
             <Search
               aria-hidden="true"
-              className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#747878]"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#747878]"
               strokeWidth={1.8}
             />
             <input
               id="faq-search"
-              className="h-14 w-full rounded-lg border border-[#c4c7c7] bg-white pl-12 pr-4 text-[14px] outline-none transition placeholder:text-[#9da1a1] focus:border-black focus:ring-1 focus:ring-black"
+              className="h-10 w-full rounded-lg border border-[#c4c7c7] bg-white pl-9 pr-4 text-[13px] outline-none transition placeholder:text-[#9da1a1] focus:border-black focus:ring-1 focus:ring-black"
               placeholder="Search for questions (e.g., 'stipend', 'selection')..."
               type="search"
               value={query}
@@ -302,7 +337,7 @@ function Landing() {
                 FAQ data is unavailable
               </h1>
               <p className="text-[14px] leading-7 text-[#444748]">
-                {errorMessage}. Make sure the backend is running and serving /api/faqs.
+                {errorMessage}. Make sure the backend is running.
               </p>
             </section>
           )}
@@ -323,15 +358,38 @@ function Landing() {
                     >
                       {section.label}
                     </h1>
-                    <p className="shrink-0 text-right text-[12px] font-bold leading-none text-[#747878]">
-                      {section.faqs.length} QUESTIONS
-                    </p>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <p className="text-[12px] font-bold leading-none text-[#747878]">
+                        {section.faqs.length} QUESTIONS
+                      </p>
+                      <Tooltip
+                        label={
+                          section.faqs.length > 0 &&
+                          section.faqs.every((faq) => openKeys.has(`${section.id}:${faq.id}`))
+                            ? 'Collapse all'
+                            : 'Expand all'
+                        }
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleSection(section)}
+                          className="flex h-6 w-6 items-center justify-center rounded-full border border-[#c4c7c7] bg-white text-[#747878] transition hover:border-black hover:text-black"
+                        >
+                          {section.faqs.length > 0 &&
+                          section.faqs.every((faq) => openKeys.has(`${section.id}:${faq.id}`)) ? (
+                            <ChevronsDownUp className="h-3 w-3" strokeWidth={2} />
+                          ) : (
+                            <ChevronsUpDown className="h-3 w-3" strokeWidth={2} />
+                          )}
+                        </button>
+                      </Tooltip>
+                    </div>
                   </div>
 
                   <div className="space-y-4">
                     {section.faqs.map((faq) => {
                       const accordionKey = `${section.id}:${faq.id}`
-                      const isOpen = openKey === accordionKey
+                      const isOpen = openKeys.has(accordionKey)
 
                       return (
                         <FaqCard
@@ -339,7 +397,7 @@ function Landing() {
                           faq={faq}
                           sectionId={section.id}
                           isOpen={isOpen}
-                          onToggle={() => setOpenKey(isOpen ? '' : accordionKey)}
+                          onToggle={() => toggleFaq(accordionKey)}
                         />
                       )
                     })}
