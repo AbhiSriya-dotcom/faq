@@ -30,7 +30,7 @@ function DashboardPage() {
   useEffect(() => {
     if (!user?.userId) return
     setLoadingContributions(true)
-    fetchUserContributions(user.userId, 3)
+    fetchUserContributions(user.userId, 5)
       .then(data => setContributions(data.contributions || []))
       .catch(() => setContributions([]))
       .finally(() => setLoadingContributions(false))
@@ -259,7 +259,7 @@ function DashboardPage() {
                 <Button
                   variant="secondary"
                   className="mt-2 w-full"
-                  onClick={() => setSelectedQueryId(null)}
+                  onClick={() => navigate('/my-contributions')}
                 >
                   See all contribution
                 </Button>

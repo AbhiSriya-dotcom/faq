@@ -268,3 +268,8 @@ export async function getUserContributions(req, res, next) {
     next(error)
   }
 }
+
+export async function getMyContributions(req, res, next) {
+  req.params.userId = req.user.userId
+  return getUserContributions(req, res, next)
+}
