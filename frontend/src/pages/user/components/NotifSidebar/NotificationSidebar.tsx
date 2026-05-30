@@ -1,4 +1,5 @@
 import { Fragment } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react'
 import { Bell, CheckCheck, X, ExternalLink } from 'lucide-react'
 import { timeAgo } from '../../service'
@@ -18,17 +19,18 @@ function NotificationSidebar({
   notifications = [],
   onMarkAllRead,
 }) {
+  const navigate = useNavigate()
   const unread = notifications.filter(n => !n.is_read).length
 
   function handleItemClick(n) {
     if (!n.link) return
-    // Internal route — navigate; external — open in new tab
+    // Internal route — navigate via react-router (SPA, no full reload)
+    // External route — open in new tab
     if (n.link.startsWith('http')) {
       window.open(n.link, '_blank', 'noopener,noreferrer')
     } else {
-      // Strip leading slash for react-router if needed
       onClose()
-      window.location.href = n.link
+      navigate(n.link)
     }
   }
 

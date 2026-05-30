@@ -454,6 +454,7 @@ export async function acceptAnswer(req, res, next) {
       body: 'Your answer was accepted.',
       reference_id: question.question_id,
       reference_type: 'question',
+      link: `/query/${question.question_id}`,
     })
 
     res.json({ success: true, message: 'Answer accepted' })

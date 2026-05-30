@@ -73,6 +73,7 @@ export async function createAnswer(req, res, next) {
         body: 'Your question received a new answer.',
         reference_id: question.question_id,
         reference_type: 'question',
+        link: `/query/${question.question_id}`,
       })
     }
 

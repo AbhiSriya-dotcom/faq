@@ -120,6 +120,7 @@ export async function allocateUnansweredQuestions() {
         body: `Question "${question.title}" has been auto-assigned to you. It was posted ${queuedDurationHrs} hours ago.`,
         reference_id: question.question_id,
         reference_type: 'question',
+        link: `/query/${question.question_id}`,
       })
 
       assignedResolverIds.add(resolver.user_id)
