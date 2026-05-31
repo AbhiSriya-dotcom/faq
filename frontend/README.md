@@ -27,9 +27,9 @@ npm run preview  # preview production build locally
 
 ## Architecture
 
-See [`Context.md`](./Context.md) for component patterns, state ownership, routing, and import depth.
+See [`CONTEXT.md`](../CONTEXT.md) for component patterns, state ownership, routing, and import depth.
 
-See [`Design.md`](./Design.md) for the design system — color tokens, typography, shared component specs.
+See [`DESIGN.md`](./DESIGN.md) for the design system — color tokens, typography, shared component specs.
 
 ## Environment
 

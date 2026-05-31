@@ -4,6 +4,7 @@ import useAuthStore from '../../store/useAuthStore'
 import useThemeStore from '../../store/useThemeStore'
 import AdminHeader from './components/Header/AdminHeader'
 import AdminLeftPane from './components/LeftPane/AdminLeftPane'
+import AdminNotificationSidebar from './components/NotificationSidebar/AdminNotificationSidebar'
 import FAQManagementView from './pages/FAQManagement'
 import QueriesManagementView from './pages/QueriesManagement'
 import AdminQueryDetailView from './pages/QueryDetail'
@@ -39,6 +40,7 @@ function AdminHome() {
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
+  const [notifSidebarOpen, setNotifSidebarOpen] = useState(false)
 
   const initials = user?.name
     ? user.name
@@ -116,9 +118,7 @@ function AdminHome() {
     navigate('/')
   }
 
-  async function handleNotificationsOpen() {
-    if (unreadCount === 0) return
-
+  async function handleMarkAllNotifRead() {
     try {
       await markAllAdminNotificationsRead()
       setUnreadCount(0)
@@ -126,6 +126,14 @@ function AdminHome() {
     } catch {
       // Keep the current unread state if the request fails.
     }
+  }
+
+  function handleNotifSidebarOpen() {
+    setNotifSidebarOpen(true)
+  }
+
+  function handleNotifSidebarClose() {
+    setNotifSidebarOpen(false)
   }
 
   function handleProfileSettings() {
@@ -171,7 +179,7 @@ function AdminHome() {
           isDark={isDark}
           onSearchChange={setSearchQuery}
           onSearchSubmit={handleSearchSubmit}
-          onNotificationsOpen={handleNotificationsOpen}
+          onNotificationsOpen={handleNotifSidebarOpen}
           onDarkToggle={toggleDark}
           onLanding={() => navigate('/')}
           onLogout={handleLogout}
@@ -195,6 +203,17 @@ function AdminHome() {
         {currentAdminView === 'faqManagement' && <FAQManagementView {...viewProps} />}
         {currentAdminView === 'adminProfile' && <AdminProfileView user={user} />}
       </main>
+
+      <AdminNotificationSidebar
+        isOpen={notifSidebarOpen}
+        onClose={handleNotifSidebarClose}
+        notifications={notifications}
+        onMarkAllRead={handleMarkAllNotifRead}
+        onNavigate={(view) => {
+          handleNotifSidebarClose()
+          setCurrentAdminView(view)
+        }}
+      />
     </div>
   )
 }

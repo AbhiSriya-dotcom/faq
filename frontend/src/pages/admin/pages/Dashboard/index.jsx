@@ -5,16 +5,17 @@ import {
   Clock,
   Download,
   ShieldAlert,
-  MessageSquare,
   RefreshCw,
   TrendingDown,
   TrendingUp,
-  UserPlus,
 } from 'lucide-react'
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -61,28 +62,6 @@ function MetricCard({ title, value, Icon, iconClassName, trend, trendType = 'up'
   )
 }
 
-function ActivityItem({ icon: Icon, title, meta, tone = 'neutral' }) {
-  const toneClass =
-    tone === 'blue'
-      ? 'bg-blue-100 text-blue-700'
-      : tone === 'amber'
-        ? 'bg-amber-100 text-amber-700'
-        : tone === 'red'
-          ? 'bg-red-100 text-red-700'
-          : 'bg-bg-primary text-text-muted'
-
-  return (
-    <div className="flex gap-3">
-      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${toneClass}`}>
-        <Icon className="h-4 w-4" strokeWidth={1.8} />
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-[13px] font-semibold text-text-primary">{title}</p>
-        <p className="mt-1 text-[11px] text-text-muted">{meta}</p>
-      </div>
-    </div>
-  )
-}
 
 function DashboardView({ dashboardData, isLoading, onRefresh, onNavigate }) {
   const metrics = dashboardData?.metrics || {}
@@ -90,34 +69,9 @@ function DashboardView({ dashboardData, isLoading, onRefresh, onNavigate }) {
   const questionMetrics = metrics.questions || {}
   const usersMetrics = metrics.users || {}
   const flagsMetrics = metrics.flags || {}
-  const recentQuestions = recent.questions || []
-  const recentUsers = recent.users || []
   const recentFlags = recent.flags || []
   const categoryData = dashboardData?.charts?.categories || []
   const attentionRows = recentFlags.slice(0, 5)
-  const activityItems = [
-    ...recentQuestions.slice(0, 2).map((question) => ({
-      id: `question-${question.question_id}`,
-      icon: MessageSquare,
-      title: `Question ${question.question_id?.slice(0, 8) || ''} needs review`,
-      meta: `${question.kind || 'community'} | ${question.status || 'open'}`,
-      tone: question.status === 'removed' ? 'red' : 'blue',
-    })),
-    ...recentUsers.slice(0, 2).map((user) => ({
-      id: `user-${user.user_id}`,
-      icon: UserPlus,
-      title: `${user.name || 'New user'} joined`,
-      meta: user.email || 'Recently created account',
-      tone: 'amber',
-    })),
-    ...recentFlags.slice(0, 2).map((flag) => ({
-      id: `flag-${flag.flag_id}`,
-      icon: AlertCircle,
-      title: `Flag opened for ${flag.target_type || 'content'}`,
-      meta: flag.reason || flag.status || 'Pending moderation',
-      tone: 'red',
-    })),
-  ]
 
   return (
     <div className="flex-1 overflow-y-auto p-5 lg:p-8">
@@ -182,7 +136,7 @@ function DashboardView({ dashboardData, isLoading, onRefresh, onNavigate }) {
         />
       </div>
 
-      <div className="mb-8 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+      <div className="mb-8 grid grid-cols-1 gap-5 xl:grid-cols-2">
         <section className="rounded-lg border border-border-light bg-bg-card p-5 shadow-sm">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-[17px] font-bold text-text-primary">Query Volume by Category</h2>
@@ -230,22 +184,80 @@ function DashboardView({ dashboardData, isLoading, onRefresh, onNavigate }) {
         </section>
 
         <section className="rounded-lg border border-border-light bg-bg-card p-5 shadow-sm">
-          <h2 className="mb-6 text-[17px] font-bold text-text-primary">Resolver Activity</h2>
-          <div className="flex flex-col gap-5">
-            {activityItems.length === 0 ? (
-              <p className="text-[13px] text-text-muted">No recent platform activity.</p>
-            ) : (
-              activityItems.map((item) => <ActivityItem key={item.id} {...item} />)
-            )}
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-[17px] font-bold text-text-primary">Last 24hrs Traffic</h2>
+            <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
+              <Clock className="h-3 w-3" strokeWidth={1.8} />
+              <span>Hourly</span>
+            </div>
           </div>
-          <button
-            type="button"
-            className="mt-6 w-full border-t border-border-light pt-4 text-center text-[13px] font-semibold text-blue-700 transition hover:text-blue-900"
-          >
-            View all activity
-          </button>
+          <div className="h-[260px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={dashboardData?.last24h || []}
+                margin={{ top: 8, right: 8, left: -20, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                <XAxis
+                  dataKey="hour"
+                  tick={{ fontSize: 9, fill: '#9ca3af' }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#e5e7eb' }}
+                  tickFormatter={val => val.split(' ')[1]?.slice(0, 5) || val}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={28}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  cursor={{ stroke: '#e5e7eb', strokeWidth: 1 }}
+                  contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+                  labelStyle={{ fontWeight: 700, color: '#111827' }}
+                  labelFormatter={val => val}
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
+                  iconType="circle"
+                  iconSize={8}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="questions"
+                  name="Questions"
+                  stroke="#2563eb"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="answers"
+                  name="Answers"
+                  stroke="#059669"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="comments"
+                  name="Comments"
+                  stroke="#d97706"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </section>
+
       </div>
+
 
       <section className="overflow-hidden rounded-lg border border-border-light bg-bg-card shadow-sm">
         <div className="flex flex-col gap-3 border-b border-border-light px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

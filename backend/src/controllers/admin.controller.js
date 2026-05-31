@@ -1,6 +1,7 @@
 import { validationResult } from 'express-validator'
 import argon2 from 'argon2'
 import Answer from '../models/answer.model.js'
+import Comment from '../models/comment.model.js'
 import Flag from '../models/flag.model.js'
 import Notification from '../models/notification.model.js'
 import Question from '../models/question.model.js'
@@ -36,6 +37,46 @@ async function syncUserPrimaryRole(userId) {
   return getPrimaryRole(roles)
 }
 
+/**
+ * Returns an array of { hour, questions, answers, comments } objects
+ * bucketed by the hour for the last 24h from since24h.
+ */
+async function hourlyTrafficAggregation(since24h) {
+  // Aggregate questions per hour
+  const [qAgg, aAgg, cAgg] = await Promise.all([
+    Question.aggregate([
+      { $match: { created_at: { $gte: since24h } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d %H:00', date: '$created_at' } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]),
+    Answer.aggregate([
+      { $match: { created_at: { $gte: since24h } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d %H:00', date: '$created_at' } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]),
+    Comment.aggregate([
+      { $match: { created_at: { $gte: since24h } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d %H:00', date: '$created_at' } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]),
+  ])
+
+  // Build hour → count maps
+  const qMap = Object.fromEntries(qAgg.map(r => [r._id, r.count]))
+  const aMap = Object.fromEntries(aAgg.map(r => [r._id, r.count]))
+  const cMap = Object.fromEntries(cAgg.map(r => [r._id, r.count]))
+
+  // Collect all unique hours across the three series, sorted
+  const allHours = [...new Set([...qAgg.map(r => r._id), ...aAgg.map(r => r._id), ...cAgg.map(r => r._id)])].sort()
+
+  return allHours.map(hour => ({
+    hour,                          // e.g. "2026-05-31 22:00"
+    questions: qMap[hour] ?? 0,
+    answers: aMap[hour] ?? 0,
+    comments: cMap[hour] ?? 0,
+  }))
+}
+
 export async function getAdminDashboard(req, res, next) {
   try {
     const createdAt = getCreatedAtFilter(req.query.from, req.query.to)
@@ -45,6 +86,7 @@ export async function getAdminDashboard(req, res, next) {
     const now = new Date()
     const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
     const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000)
+    const since24h = new Date(now - 24 * 60 * 60 * 1000)
 
     const [
       totalUsers, usersThisWeek, usersThisMonth,
@@ -56,6 +98,7 @@ export async function getAdminDashboard(req, res, next) {
       recentUsers,
       recentFlags,
       tagStats,
+      hourlyTraffic,
     ] = await Promise.all([
       User.countDocuments(periodFilter),
       User.countDocuments({ ...periodFilter, created_at: { $gte: weekAgo } }),
@@ -68,7 +111,7 @@ export async function getAdminDashboard(req, res, next) {
       Answer.countDocuments(periodFilter),
       Flag.countDocuments(openFlagFilter),
       SparkTransaction.aggregate([
-        { $match: { created_at: periodFilter.created_at || {} } },
+        { $match: periodFilter.created_at ? { created_at: periodFilter.created_at } : {} },
         { $group: { _id: null, total: { $sum: '$points' } } },
       ]),
       Question.find(periodFilter)
@@ -102,10 +145,12 @@ export async function getAdminDashboard(req, res, next) {
             },
           },
         },
-        { $project: { _id: 0, category: { $capitalize: '$_id' }, total: 1, new: { $subtract: ['$total', '$resolved'] }, resolved: 1 } },
+        { $project: { _id: 0, tag: '$_id', total: 1, new: { $subtract: ['$total', '$resolved'] }, resolved: 1 } },
         { $sort: { total: -1 } },
         { $limit: 10 },
       ]),
+      // Hourly traffic for last 24h — single pipeline that returns all three series
+      hourlyTrafficAggregation(since24h),
     ])
 
     const sparkTotal = totalSparks[0]?.total ?? 0
@@ -134,8 +179,14 @@ export async function getAdminDashboard(req, res, next) {
         flags: recentFlags,
       },
       charts: {
-        categories: tagStats,
+        categories: tagStats.map(t => ({
+          category: t.tag.charAt(0).toUpperCase() + t.tag.slice(1),
+          total: t.total,
+          new: t.new,
+          resolved: t.resolved,
+        })),
       },
+      last24h: hourlyTraffic,
     })
   } catch (error) {
     next(error)

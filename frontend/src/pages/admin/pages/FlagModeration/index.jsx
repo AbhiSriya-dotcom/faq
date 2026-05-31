@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Flag, ShieldAlert, ChevronLeft, ChevronRight, Loader, EyeOff, Trash2,
-  AlertTriangle, Ban, User, Clock, FileText, MessageSquare, CheckCircle,
+  Flag, ShieldAlert, ChevronLeft, ChevronRight, Loader,
+  User, Clock, FileText, MessageSquare,
 } from 'lucide-react'
 import Modal from '../../../../components/Modal/Modal'
 import { notifyError, notifySuccess } from '../../../../lib/notify'
@@ -36,13 +36,6 @@ const TARGET_META = {
 }
 
 // Resolve actions (only shown when upholding a flag).
-const ACTIONS = [
-  { value: 'no_action',      label: 'No action',       Icon: CheckCircle },
-  { value: 'hide_content',   label: 'Hide content',    Icon: EyeOff },
-  { value: 'delete_content', label: 'Delete content',  Icon: Trash2 },
-  { value: 'warn_user',      label: 'Warn author',     Icon: AlertTriangle },
-  { value: 'suspend_user',   label: 'Suspend author',  Icon: Ban },
-]
 
 const LABEL_CLS = 'mb-2 block text-[11px] font-bold uppercase tracking-[0.08em] text-text-muted'
 const INPUT_CLS = 'w-full rounded-lg border border-border bg-bg-primary px-4 py-2.5 text-[13px] text-text-primary placeholder:text-text-muted outline-none transition focus:border-text-primary focus:ring-1 focus:ring-text-primary'
@@ -52,10 +45,10 @@ function stripHtml(html = '') {
 }
 
 function formatDate(value) {
-  if (!value) return '—'
+  if (!value) return '-'
   const d = new Date(value)
   return Number.isNaN(d.getTime())
-    ? '—'
+    ? '-'
     : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
@@ -67,7 +60,7 @@ function targetPreview(flag) {
   return stripHtml(t.body) || stripHtml(t.body_plain)
 }
 
-function FlagCard({ flag, onReview }) {
+function FlagCard({ flag, onReview, showStatus = true }) {
   const tm = TARGET_META[flag.target_type] || TARGET_META.comment
   const sm = STATUS_META[flag.status] || STATUS_META.pending
   const preview = targetPreview(flag)
@@ -79,14 +72,14 @@ function FlagCard({ flag, onReview }) {
           <TargetIcon className="h-3 w-3" strokeWidth={2.2} /> {flag.target_type}
         </span>
         <span className="rounded bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase text-red-700">{flag.reason}</span>
-        <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${sm.cls}`}>{sm.label}</span>
+        {showStatus && <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${sm.cls}`}>{sm.label}</span>}
         <span className="ml-auto flex items-center gap-1 text-[11px] text-text-muted">
           <Clock className="h-3 w-3" strokeWidth={1.8} /> {formatDate(flag.created_at)}
         </span>
       </div>
 
       {/* Reporter note */}
-      {flag.notes && <p className="mb-2 text-[12px] italic text-text-secondary">“{flag.notes}”</p>}
+      {flag.notes && <p className="mb-2 text-[12px] italic text-text-secondary">"{flag.notes}"</p>}
 
       {/* Flagged content */}
       <div className="rounded-lg border border-border-light bg-bg-tertiary px-3 py-2">
@@ -98,9 +91,18 @@ function FlagCard({ flag, onReview }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-text-muted">
-        <span className="flex items-center gap-1">
-          <User className="h-3.5 w-3.5" strokeWidth={1.8} /> Reported by {flag.reported_by?.slice(0, 8) || '—'}
-        </span>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          <span className="flex items-center gap-1">
+            <User className="h-3.5 w-3.5" strokeWidth={1.8} />
+            Reported by <span className="font-semibold text-text-primary">{flag.reported_by_name || flag.reported_by?.slice(0, 8) || '—'}</span>
+          </span>
+          {flag.author_name && (
+            <span className="flex items-center gap-1">
+              <FileText className="h-3.5 w-3.5" strokeWidth={1.8} />
+              Author <span className="font-semibold text-text-primary">{flag.author_name}</span>
+            </span>
+          )}
+        </div>
         {flag.status === 'pending' ? (
           <button
             type="button"
@@ -114,7 +116,7 @@ function FlagCard({ flag, onReview }) {
             {flag.review_action && flag.review_action !== 'no_action'
               ? `Action: ${flag.review_action.replace('_', ' ')}`
               : 'Reviewed'}
-            {flag.resolution_note ? ` · “${flag.resolution_note}”` : ''}
+            {flag.resolution_note ? ` · "${flag.resolution_note}"` : ''}
           </span>
         )}
       </div>
@@ -133,8 +135,7 @@ function FlagModerationView() {
 
   // Review modal
   const [reviewing, setReviewing]   = useState(null)   // flag under review, or null
-  const [outcome, setOutcome]       = useState('')     // 'resolved' | 'dismissed'
-  const [action, setAction]         = useState('no_action')
+  const [selectedOutcome, setSelectedOutcome] = useState('') // 'resolved' | 'dismissed'
   const [note, setNote]             = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -164,21 +165,20 @@ function FlagModerationView() {
 
   function openReview(flag) {
     setReviewing(flag)
-    setOutcome('')
-    setAction('no_action')
+    setSelectedOutcome('')
     setNote('')
   }
 
   async function submitReview() {
-    if (!reviewing || !outcome || submitting) return
+    if (!reviewing || !selectedOutcome || submitting) return
     setSubmitting(true)
     try {
       await resolveFlag(reviewing.flag_id, {
-        status: outcome,
-        action: outcome === 'resolved' ? action : 'no_action',
+        status: selectedOutcome,
+        action: selectedOutcome === 'resolved' ? 'hide_content' : 'no_action',
         resolutionNote: note.trim(),
       })
-      notifySuccess(outcome === 'resolved' ? 'Flag upheld.' : 'Flag dismissed.')
+      notifySuccess(selectedOutcome === 'resolved' ? 'Content hidden — author & reporter notified.' : 'Flag dismissed.')
       setReviewing(null)
       await load()
     } catch (err) {
@@ -245,18 +245,18 @@ function FlagModerationView() {
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-16 text-[13px] text-text-muted">
-          <Loader className="h-4 w-4 animate-spin" /> Loading flags…
+          <Loader className="h-4 w-4 animate-spin" /> Loading flags...
         </div>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-16 text-[13px] text-text-muted">
           <Flag className="h-8 w-8 text-[#d1d5db]" strokeWidth={1.5} />
-          {tab === 'queue' ? 'Nothing pending — the queue is clear.' : 'No flags match this view.'}
+          {tab === 'queue' ? 'Nothing pending - the queue is clear.' : 'No flags match this view.'}
         </div>
       ) : (
         <>
           <div className="flex flex-col gap-3">
             {items.map(flag => (
-              <FlagCard key={flag.flag_id} flag={flag} onReview={openReview} />
+              <FlagCard key={flag.flag_id} flag={flag} onReview={openReview} showStatus={tab !== 'queue'} />
             ))}
           </div>
 
@@ -295,6 +295,9 @@ function FlagModerationView() {
               <p className="mt-1 text-[13px] text-text-secondary">
                 <span className="font-semibold capitalize">{reviewing.target_type}</span> reported for{' '}
                 <span className="font-semibold text-red-600">{reviewing.reason}</span>
+                {reviewing.reported_by_name && (
+                  <> by <span className="font-semibold text-text-primary">{reviewing.reported_by_name}</span></>
+                )}
               </p>
             </div>
 
@@ -304,69 +307,56 @@ function FlagModerationView() {
                 {targetPreview(reviewing) || <span className="italic text-text-muted">Content no longer available.</span>}
               </div>
 
-              {/* Outcome */}
+              {/* Decision */}
               <div>
                 <p className={LABEL_CLS}>Decision</p>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setOutcome('resolved')}
-                    className={`flex-1 rounded-lg border px-3 py-2.5 text-[12px] font-semibold transition ${
-                      outcome === 'resolved'
-                        ? 'border-red-500 bg-red-50 text-red-700'
-                        : 'border-border bg-bg-card text-text-secondary hover:border-red-400'
+                    onClick={() => setSelectedOutcome('resolved')}
+                    className={`flex flex-1 flex-col items-center gap-1 rounded-xl border-2 px-4 py-4 text-center transition ${
+                      selectedOutcome === 'resolved'
+                        ? 'border-red-500 bg-red-50'
+                        : 'border-border bg-bg-card hover:border-red-300'
                     }`}
                   >
-                    Uphold <span className="font-normal">· content violates</span>
+                    <span className={`text-[13px] font-bold ${selectedOutcome === 'resolved' ? 'text-red-700' : 'text-text-secondary'}`}>
+                      Uphold
+                    </span>
+                    <span className={`text-[11px] ${selectedOutcome === 'resolved' ? 'text-red-600' : 'text-text-muted'}`}>
+                      Hides content & notifies both
+                    </span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setOutcome('dismissed')}
-                    className={`flex-1 rounded-lg border px-3 py-2.5 text-[12px] font-semibold transition ${
-                      outcome === 'dismissed'
-                        ? 'border-brand bg-brand/10 text-brand'
-                        : 'border-border bg-bg-card text-text-secondary hover:border-brand'
+                    onClick={() => setSelectedOutcome('dismissed')}
+                    className={`flex flex-1 flex-col items-center gap-1 rounded-xl border-2 px-4 py-4 text-center transition ${
+                      selectedOutcome === 'dismissed'
+                        ? 'border-brand bg-brand/5'
+                        : 'border-border bg-bg-card hover:border-brand'
                     }`}
                   >
-                    Dismiss <span className="font-normal">· no violation</span>
+                    <span className={`text-[13px] font-bold ${selectedOutcome === 'dismissed' ? 'text-brand' : 'text-text-secondary'}`}>
+                      Dismiss
+                    </span>
+                    <span className={`text-[11px] ${selectedOutcome === 'dismissed' ? 'text-brand/80' : 'text-text-muted'}`}>
+                      No action, flag closed
+                    </span>
                   </button>
                 </div>
               </div>
 
-              {/* Action (only when upholding) */}
-              {outcome === 'resolved' && (
-                <div>
-                  <p className={LABEL_CLS}>Action</p>
-                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                    {ACTIONS.map(a => {
-                      const ActIcon = a.Icon
-                      return (
-                        <button
-                          key={a.value}
-                          type="button"
-                          onClick={() => setAction(a.value)}
-                          className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-medium transition ${
-                            action === a.value
-                              ? 'border-brand bg-brand/10 text-brand'
-                              : 'border-border bg-bg-card text-text-secondary hover:border-brand'
-                          }`}
-                        >
-                          <ActIcon className="h-3.5 w-3.5" strokeWidth={1.8} /> {a.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
               {/* Note */}
               <div>
-                <p className={LABEL_CLS}>Resolution note <span className="font-normal normal-case text-text-muted">(optional)</span></p>
+                <p className={LABEL_CLS}>
+                  Resolution note
+                  <span className="font-normal normal-case text-text-muted"> (optional — shared with author & reporter on uphold)</span>
+                </p>
                 <textarea
                   value={note}
                   onChange={e => setNote(e.target.value)}
                   rows={2}
-                  placeholder="Shared with the author for warnings/suspensions."
+                  placeholder="Describe the violation for the author and reporter…"
                   className={`${INPUT_CLS} resize-none`}
                 />
               </div>
@@ -384,10 +374,16 @@ function FlagModerationView() {
               <button
                 type="button"
                 onClick={submitReview}
-                disabled={submitting || !outcome}
-                className="rounded-lg bg-black px-6 py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#2e3132] disabled:opacity-50"
+                disabled={submitting || !selectedOutcome}
+                className={`rounded-lg px-6 py-2.5 text-[13px] font-semibold text-white transition disabled:opacity-50 ${
+                  selectedOutcome === 'resolved'
+                    ? 'bg-red-700 hover:bg-red-800'
+                    : selectedOutcome === 'dismissed'
+                    ? 'bg-brand hover:bg-brand/90'
+                    : 'bg-black hover:bg-[#2e3132]'
+                }`}
               >
-                {submitting ? 'Applying…' : 'Apply decision'}
+                {submitting ? 'Applying…' : selectedOutcome === 'resolved' ? 'Hide content & notify' : selectedOutcome === 'dismissed' ? 'Dismiss flag' : 'Apply'}
               </button>
             </div>
           </>
