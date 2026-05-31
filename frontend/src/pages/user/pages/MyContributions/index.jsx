@@ -24,25 +24,49 @@ function MyContributionsPage() {
   const { user } = useAuthStore()
 
   const [contributions, setContributions] = useState([])
+  const [summaryStats, setSummaryStats]   = useState(null)
   const [activeTab, setActiveTab]         = useState('all')
   const [loading, setLoading]             = useState(true)
 
   useEffect(() => {
-    if (!user?.userId) return
+    if (!user?.userId) {
+      setContributions([])
+      setSummaryStats(null)
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     fetchMyContributions()
-      .then(data => setContributions(data.contributions || []))
-      .catch(() => notifyError('Could not load your contributions.'))
+      .then(data => {
+        setContributions(Array.isArray(data.contributions) ? data.contributions : [])
+        setSummaryStats(data.stats || null)
+      })
+      .catch(() => {
+        setContributions([])
+        setSummaryStats(null)
+        notifyError('Could not load your contributions.')
+      })
       .finally(() => setLoading(false))
   }, [user?.userId])
 
   // ── Derived stats + filtered list ────────────────────────────────────────
-  const stats = useMemo(() => ({
-    question: contributions.filter(c => c.type === 'question').length,
-    answer:   contributions.filter(c => c.type === 'answer').length,
-    comment:  contributions.filter(c => c.type === 'comment').length,
-    accepted: contributions.filter(c => c.type === 'answer' && c.isAccepted).length,
-  }), [contributions])
+  const stats = useMemo(() => {
+    const derived = {
+      question: contributions.filter(c => c.type === 'question').length,
+      answer:   contributions.filter(c => c.type === 'answer').length,
+      comment:  contributions.filter(c => c.type === 'comment').length,
+      accepted: contributions.filter(c => c.type === 'answer' && c.isAccepted).length,
+    }
+
+    return {
+      question: Number(summaryStats?.question ?? derived.question),
+      answer:   Number(summaryStats?.answer ?? derived.answer),
+      comment:  Number(summaryStats?.comment ?? derived.comment),
+      accepted: Number(summaryStats?.accepted ?? derived.accepted),
+      total:    Number(summaryStats?.total ?? contributions.length),
+    }
+  }, [contributions, summaryStats])
 
   const STAT_CARDS = [
     { label: 'Questions', value: stats.question, Icon: HelpCircle,    color: '#8c6a40' },
@@ -128,7 +152,7 @@ function MyContributionsPage() {
           <div className="mb-6 flex gap-1 rounded-xl bg-bg-tertiary p-1">
             {TABS.map(tab => {
               const count =
-                tab.key === 'all' ? contributions.length
+                tab.key === 'all' ? stats.total
                 : tab.key === 'questions' ? stats.question
                 : tab.key === 'answers' ? stats.answer
                 : stats.comment

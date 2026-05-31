@@ -207,31 +207,57 @@ export async function updateUserStatus(req, res, next) {
 export async function getUserContributions(req, res, next) {
   try {
     const userId = req.params.userId
-    const limit = Math.min(parseInt(req.query.limit) || 10, 50)
+    const limit = Math.min(parseInt(req.query.limit) || 10, 100)
 
     // Only reveal anonymous questions to the author themselves or an admin
     const isSelfOrAdmin = req.user.userId === userId || req.user.roles.includes('ADMIN')
-    const questionFilter = { author_id: userId }
+    const questionFilter = {
+      author_id: userId,
+      visibility: { $ne: 'deleted' },
+      status: { $ne: 'removed' },
+    }
     if (!isSelfOrAdmin) {
       questionFilter.is_anonymous = { $ne: true }
     }
+    const answerFilter = {
+      author_id: userId,
+      is_deleted: { $ne: true },
+      visibility: { $ne: 'deleted' },
+    }
+    const commentFilter = {
+      author_id: userId,
+      is_deleted: { $ne: true },
+      visibility: { $ne: 'deleted' },
+    }
 
-    const [questions, answers, comments] = await Promise.all([
+    const [
+      questions,
+      answers,
+      comments,
+      questionsCount,
+      answersCount,
+      commentsCount,
+      acceptedAnswersCount,
+    ] = await Promise.all([
       Question.find(questionFilter)
         .select('question_id title body status upvotes created_at')
         .sort({ created_at: -1 })
         .limit(limit)
         .lean(),
-      Answer.find({ author_id: userId })
+      Answer.find(answerFilter)
         .select('answer_id question_id body score is_accepted created_at')
         .sort({ created_at: -1 })
         .limit(limit)
         .lean(),
-      Comment.find({ author_id: userId })
-        .select('comment_id question_id answer_id body created_at')
+      Comment.find(commentFilter)
+        .select('comment_id question_id answer_id body score created_at')
         .sort({ created_at: -1 })
         .limit(limit)
         .lean(),
+      Question.countDocuments(questionFilter),
+      Answer.countDocuments(answerFilter),
+      Comment.countDocuments(commentFilter),
+      Answer.countDocuments({ ...answerFilter, is_accepted: true }),
     ])
 
     const contributions = [
@@ -259,11 +285,22 @@ export async function getUserContributions(req, res, next) {
         questionId: c.question_id,
         answerId: c.answer_id,
         body: c.body,
+        score: c.score || 0,
         time: c.created_at,
       })),
     ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, limit)
 
-    res.json({ success: true, contributions })
+    res.json({
+      success: true,
+      contributions,
+      stats: {
+        question: questionsCount,
+        answer: answersCount,
+        comment: commentsCount,
+        accepted: acceptedAnswersCount,
+        total: questionsCount + answersCount + commentsCount,
+      },
+    })
   } catch (error) {
     next(error)
   }
