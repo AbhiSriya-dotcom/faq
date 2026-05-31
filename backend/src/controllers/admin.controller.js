@@ -23,6 +23,11 @@ import {
   updatePlatformSettingsSection,
 } from '../services/platform-settings.service.js'
 import {
+  buildLeaderboardRows,
+  computeScore,
+  getContributorStats,
+} from '../services/leaderboard.service.js'
+import {
   createHttpError,
   getCreatedAtFilter,
   getPagination,
@@ -224,6 +229,84 @@ export async function updateAdminSettings(req, res, next) {
   }
 }
 
+/**
+ * Preview the leaderboard with candidate weights — returns the projected top-N
+ * entries alongside the current top-N so the admin can see rank shifts before
+ * saving.
+ *
+ * POST /api/admin/settings/leaderboard/preview
+ * Body: { weights: { ...leaderboard weights }, limit?: number }
+ */
+export async function previewLeaderboardWeights(req, res, next) {
+  try {
+    const { weights: candidateWeights, limit = 20 } = req.body
+
+    if (!candidateWeights || typeof candidateWeights !== 'object') {
+      throw createHttpError(400, 'weights object is required')
+    }
+
+    const settings = await getPlatformSettings()
+    const currentWeights = settings.leaderboard
+
+    // Get the top users by spark_points to preview — representative sample
+    const users = await User.find()
+      .sort({ spark_points: -1 })
+      .limit(Math.min(Number(limit) || 20, 100))
+      .select('user_id name spark_points')
+      .lean()
+
+    const userIds = users.map((u) => u.user_id)
+    if (!userIds.length) {
+      return res.json({ success: true, current: [], projected: [] })
+    }
+
+    const statsById = await getContributorStats(userIds)
+    for (const user of users) {
+      if (statsById[user.user_id]) {
+        statsById[user.user_id].sparkPoints = user.spark_points || 0
+      }
+    }
+
+    const usersWithStats = users.map((u) => ({ user: u, stats: statsById[u.user_id] || {} }))
+
+    const current = buildLeaderboardRows(usersWithStats, currentWeights)
+    const projected = buildLeaderboardRows(usersWithStats, candidateWeights)
+
+    // Attach rank to each entry
+    const withRank = (rows) =>
+      rows.map((r, i) => ({ ...r, rank: i + 1 }))
+
+    // Annotate each projected row with rank change vs current
+    const currentById = Object.fromEntries(current.map((r) => [r.userId, r]))
+    const enriched = withRank(projected).map((r) => ({
+      ...r,
+      rankChange: currentById[r.userId]
+        ? currentById[r.userId].rank - r.rank
+        : 0,
+      currentScore: currentById[r.userId]
+        ? currentById[r.userId].score
+        : null,
+    }))
+
+    res.json({
+      success: true,
+      current: withRank(current).slice(0, limit),
+      projected: enriched.slice(0, limit),
+      weightDiff: Object.fromEntries(
+        Object.keys(candidateWeights).map((k) => [
+          k,
+          {
+            from: currentWeights[k] ?? 0,
+            to: candidateWeights[k] ?? 0,
+          },
+        ]),
+      ),
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export async function assignUserRole(req, res, next) {
   try {
     const roleName = normalizeRoleName(req.body.role)
@@ -385,7 +468,7 @@ export async function createUser(req, res, next) {
         if (roleDoc) {
           await UserRoleMapper.create({ user_id: user.user_id, role_id: roleDoc.role_id })
           await Notification.create({
-            user_id: user.user_id,
+            recipient_id: user.user_id,
             actor_id: req.user.userId,
             type: 'account_status',
             title: 'Account created',

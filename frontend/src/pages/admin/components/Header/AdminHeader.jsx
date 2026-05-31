@@ -6,7 +6,6 @@ function AdminHeader({
   initials,
   currentAdminView,
   searchQuery,
-  notifications,
   unreadCount,
   isDark,
   onSearchChange,

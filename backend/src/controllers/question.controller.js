@@ -113,6 +113,16 @@ function canManage(req, question) {
   return isAdmin(req) || question.author_id === req.user.userId
 }
 
+export function getQuestionStatusFilter(status) {
+  if (status === 'open') {
+    return { $in: ['unanswered', 'answered'] }
+  }
+  if (status === 'resolved') {
+    return 'closed'
+  }
+  return status || undefined
+}
+
 export async function createQuestion(req, res, next) {
   let question
 
@@ -169,12 +179,9 @@ export async function listQuestions(req, res, next) {
         filter.tags = tags.length > 1 ? { $in: tags } : tags[0]
       }
     }
-    if (req.query.status === 'open') {
-      filter.status = { $in: ['unanswered', 'answered'] }
-    } else if (req.query.status === 'resolved') {
-      filter.status = { $in: ['answered', 'closed'] }
-    } else if (req.query.status) {
-      filter.status = req.query.status
+    const statusFilter = getQuestionStatusFilter(req.query.status)
+    if (statusFilter) {
+      filter.status = statusFilter
     }
     if (req.query.search) {
       // Keyword search over question text (title/body) and answer text

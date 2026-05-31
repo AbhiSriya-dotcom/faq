@@ -32,6 +32,11 @@ export async function updateAdminSettingsSection(section, updates) {
   return data.settings
 }
 
+export async function previewLeaderboardWeights(weights, limit = 20) {
+  const { data } = await axisPrivate().post('/api/admin/settings/leaderboard/preview', { weights, limit })
+  return data
+}
+
 export async function logoutAdmin() {
   await axisPrivate().post('/api/auth/logout')
 }

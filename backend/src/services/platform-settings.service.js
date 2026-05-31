@@ -211,6 +211,10 @@ function sanitizeSection(section, input) {
   throw createHttpError(404, 'Settings section not found')
 }
 
+export function mergeAndSanitizePlatformSettingsSection(section, currentSection, updates) {
+  return sanitizeSection(section, deepMerge(currentSection, updates))
+}
+
 function serializeSettings(document) {
   const value = document?.toObject ? document.toObject() : document
   const merged = deepMerge(DEFAULT_PLATFORM_SETTINGS, {
@@ -251,7 +255,7 @@ export async function updatePlatformSettingsSection(section, updates, adminId) {
   }
 
   const current = await getPlatformSettings()
-  const nextSection = sanitizeSection(section, deepMerge(current[path], updates))
+  const nextSection = mergeAndSanitizePlatformSettingsSection(section, current[path], updates)
 
   const document = await PlatformSettings.findOneAndUpdate(
     { settings_id: SETTINGS_ID },

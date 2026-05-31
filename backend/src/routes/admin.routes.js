@@ -9,6 +9,7 @@ import {
   getAdminSettings,
   listAdminSparkTransactions,
   listTags,
+  previewLeaderboardWeights,
   removeUserRole,
   renameTag,
   updateAdminSettings,
@@ -32,6 +33,7 @@ router.use(verifyToken, checkRole('ADMIN'))
 router.get('/dashboard', getAdminDashboard)
 router.get('/settings', getAdminSettings)
 router.patch('/settings/:section', updateAdminSettings)
+router.post('/settings/leaderboard/preview', previewLeaderboardWeights)
 router.post('/users/:userId/roles', assignUserRole)
 router.delete('/users/:userId/roles/:roleName', removeUserRole)
 router.post('/users', createUser)

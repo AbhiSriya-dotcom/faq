@@ -1,11 +1,12 @@
 import Answer from '../models/answer.model.js'
-import Comment from '../models/comment.model.js'
-import Notification from '../models/notification.model.js'
-import Question from '../models/question.model.js'
 import SparkTransaction from '../models/spark-transaction.model.js'
 import UserProfile from '../models/user-profile.model.js'
 import User from '../models/user.model.js'
 import { getPlatformSettings } from '../services/platform-settings.service.js'
+import {
+  buildLeaderboardRows,
+  getContributorStats,
+} from '../services/leaderboard.service.js'
 import { getUserIdsByRole } from '../services/role.service.js'
 import {
   createHttpError,
@@ -16,30 +17,21 @@ import {
 
 async function getDisplayNameByUserId(userIds) {
   const ids = [...new Set(userIds.filter(Boolean))]
-
-  if (!ids.length) {
-    return {}
-  }
-
+  if (!ids.length) return {}
   const [users, profiles] = await Promise.all([
     User.find({ user_id: { $in: ids } }).select('user_id name').lean(),
     UserProfile.find({ user_id: { $in: ids } }).select('user_id display_name').lean(),
   ])
-  const displayNameById = Object.fromEntries(users.map((user) => [user.user_id, user.name]))
-
+  const displayNameById = Object.fromEntries(users.map((u) => [u.user_id, u.name]))
   for (const profile of profiles) {
-    if (profile.display_name) {
-      displayNameById[profile.user_id] = profile.display_name
-    }
+    if (profile.display_name) displayNameById[profile.user_id] = profile.display_name
   }
-
   return displayNameById
 }
 
 export async function getSparkBalance(req, res, next) {
   try {
     const profile = await UserProfile.findOne({ user_id: req.user.userId })
-
     res.json({
       success: true,
       sparkBalance: req.authUser.spark_points || 0,
@@ -56,12 +48,8 @@ export async function listSparkTransactions(req, res, next) {
     const filter = { user_id: req.user.userId }
     const createdAt = getCreatedAtFilter(req.query.from, req.query.to)
 
-    if (req.query.type) {
-      filter.action = req.query.type
-    }
-    if (createdAt) {
-      filter.created_at = createdAt
-    }
+    if (req.query.type) filter.action = req.query.type
+    if (createdAt) filter.created_at = createdAt
 
     const [transactions, total] = await Promise.all([
       SparkTransaction.find(filter).sort({ created_at: -1 }).skip(skip).limit(limit).lean(),
@@ -97,29 +85,14 @@ function getWindowStart(window) {
 // "Questions Answered" / "Upvotes Received" columns.
 async function getAnswerStatsByUser(userIds) {
   const ids = [...new Set(userIds.filter(Boolean))]
-  if (!ids.length) {
-    return {}
-  }
+  if (!ids.length) return {}
   const rows = await Answer.aggregate([
     { $match: { author_id: { $in: ids }, is_deleted: { $ne: true } } },
-    {
-      $group: {
-        _id: '$author_id',
-        answersCount: { $sum: 1 },
-        upvotesReceived: { $sum: '$upvotes' },
-      },
-    },
+    { $group: { _id: '$author_id', answersCount: { $sum: 1 }, upvotesReceived: { $sum: '$upvotes' } } },
   ])
   return Object.fromEntries(
-    rows.map((row) => [
-      row._id,
-      { answersCount: row.answersCount, upvotesReceived: row.upvotesReceived || 0 },
-    ]),
+    rows.map((r) => [r._id, { answersCount: r.answersCount, upvotesReceived: r.upvotesReceived || 0 }]),
   )
-}
-
-function keyed(rows, mapValue) {
-  return Object.fromEntries(rows.map((row) => [row._id, mapValue(row)]))
 }
 
 async function getWeightedReputationLeaderboard({ userFilter, limit }) {
@@ -127,134 +100,20 @@ async function getWeightedReputationLeaderboard({ userFilter, limit }) {
   const weights = settings.leaderboard
 
   const users = await User.find(userFilter).select('user_id name spark_points').lean()
-  const userIds = users.map((user) => user.user_id)
+  const userIds = users.map((u) => u.user_id)
+  if (!userIds.length) return []
 
-  if (!userIds.length) {
-    return []
+  const statsById = await getContributorStats(userIds)
+
+  // Fill sparkPoints from the User docs (not in contributor stats)
+  for (const user of users) {
+    if (statsById[user.user_id]) {
+      statsById[user.user_id].sparkPoints = user.spark_points || 0
+    }
   }
 
-  const [
-    profiles,
-    questionRows,
-    answerRows,
-    commentRows,
-    warningRows,
-  ] = await Promise.all([
-    UserProfile.find({ user_id: { $in: userIds } }).select('user_id display_name reputation').lean(),
-    Question.aggregate([
-      {
-        $match: {
-          author_id: { $in: userIds },
-          kind: 'community',
-          status: { $ne: 'removed' },
-        },
-      },
-      {
-        $group: {
-          _id: '$author_id',
-          questionsAsked: { $sum: 1 },
-          questionUpvotes: { $sum: '$upvotes' },
-        },
-      },
-    ]),
-    Answer.aggregate([
-      {
-        $match: {
-          author_id: { $in: userIds },
-          is_deleted: { $ne: true },
-          visibility: { $ne: 'deleted' },
-        },
-      },
-      {
-        $group: {
-          _id: '$author_id',
-          answersGiven: { $sum: 1 },
-          acceptedResolutions: { $sum: { $cond: ['$is_accepted', 1, 0] } },
-          answerUpvotes: { $sum: '$upvotes' },
-          resolverActivity: {
-            $sum: {
-              $cond: [
-                {
-                  $or: [
-                    { $eq: ['$author_role', 'RESOLVER'] },
-                    { $eq: ['$is_expert', true] },
-                  ],
-                },
-                1,
-                0,
-              ],
-            },
-          },
-        },
-      },
-    ]),
-    Comment.aggregate([
-      {
-        $match: {
-          author_id: { $in: userIds },
-          is_deleted: { $ne: true },
-          visibility: { $ne: 'deleted' },
-        },
-      },
-      {
-        $group: {
-          _id: '$author_id',
-          commentsGiven: { $sum: 1 },
-          commentUpvotes: { $sum: '$upvotes' },
-        },
-      },
-    ]),
-    Notification.aggregate([
-      {
-        $match: {
-          recipient_id: { $in: userIds },
-          type: { $in: ['warning', 'content_hidden'] },
-        },
-      },
-      { $group: { _id: '$recipient_id', negativeActions: { $sum: 1 } } },
-    ]),
-  ])
-
-  const profileById = Object.fromEntries(profiles.map((profile) => [profile.user_id, profile]))
-  const questionsById = keyed(questionRows, (row) => row)
-  const answersById = keyed(answerRows, (row) => row)
-  const commentsById = keyed(commentRows, (row) => row)
-  const warningsById = keyed(warningRows, (row) => row.negativeActions)
-
-  return users
-    .map((user) => {
-      const profile = profileById[user.user_id]
-      const questions = questionsById[user.user_id] || {}
-      const answers = answersById[user.user_id] || {}
-      const comments = commentsById[user.user_id] || {}
-      const upvotesReceived =
-        (questions.questionUpvotes || 0) +
-        (answers.answerUpvotes || 0) +
-        (comments.commentUpvotes || 0)
-      const score =
-        (questions.questionsAsked || 0) * weights.questionsAskedWeight +
-        (answers.answersGiven || 0) * weights.answersGivenWeight +
-        (comments.commentsGiven || 0) * weights.commentsGivenWeight +
-        (answers.acceptedResolutions || 0) * weights.acceptedResolutionsWeight +
-        upvotesReceived * weights.upvotesReceivedWeight +
-        (answers.resolverActivity || 0) * weights.resolverActivityWeight +
-        (user.spark_points || 0) * weights.sparkPointsWeight +
-        (profile?.reputation || 0) * weights.reputationWeight -
-        (warningsById[user.user_id] || 0) * weights.warningPenaltyWeight
-
-      return {
-        userId: user.user_id,
-        displayName: profile?.display_name || user.name,
-        score: Math.round(score * 100) / 100,
-        questionsAsked: questions.questionsAsked || 0,
-        answersCount: answers.answersGiven || 0,
-        commentsCount: comments.commentsGiven || 0,
-        acceptedResolutions: answers.acceptedResolutions || 0,
-        upvotesReceived,
-      }
-    })
-    .sort((a, b) => b.score - a.score || a.displayName.localeCompare(b.displayName))
-    .slice(0, limit)
+  const usersWithStats = users.map((u) => ({ user: u, stats: statsById[u.user_id] || {} }))
+  return buildLeaderboardRows(usersWithStats, weights).slice(0, limit)
 }
 
 export async function getLeaderboard(req, res, next) {
@@ -279,8 +138,6 @@ export async function getLeaderboard(req, res, next) {
     // query is an internal lookup, so we don't exclude them in that case.)
     const excludedUserIds = role === 'ADMIN' ? [] : await getUserIdsByRole('ADMIN')
 
-    // Build a user-id match that combines the optional role inclusion ($in)
-    // with the admin exclusion ($nin). Returns {} when neither applies.
     const userIdMatch = (field) => {
       const condition = {}
       if (roleUserIds) condition.$in = roleUserIds
@@ -304,12 +161,11 @@ export async function getLeaderboard(req, res, next) {
         { $sort: { score: -1 } },
         { $limit: limit },
       ])
+
       const candidateUserIds = rows.map((row) => row._id)
-      const users = await User.find({
-        user_id: { $in: candidateUserIds },
-      }).lean()
-      const byId = Object.fromEntries(users.map((user) => [user.user_id, user]))
-      const displayNameById = await getDisplayNameByUserId(users.map((user) => user.user_id))
+      const users = await User.find({ user_id: { $in: candidateUserIds } }).lean()
+      const byId = Object.fromEntries(users.map((u) => [u.user_id, u]))
+      const displayNameById = await getDisplayNameByUserId(users.map((u) => u.user_id))
 
       leaderboard = rows
         .filter((row) => byId[row._id])
@@ -324,10 +180,10 @@ export async function getLeaderboard(req, res, next) {
     } else {
       // Spark points. All-time reads the cached User.spark_points balance;
       // today/monthly sum the spark ledger within the window.
-      let sparkRows // [{ userId, score }]
+      let sparkRows
       if (sparkWindow === 'all') {
         const users = await User.find(userFilter).sort({ spark_points: -1 }).limit(limit).lean()
-        sparkRows = users.map((user) => ({ userId: user.user_id, score: user.spark_points || 0 }))
+        sparkRows = users.map((u) => ({ userId: u.user_id, score: u.spark_points || 0 }))
       } else {
         const agg = await SparkTransaction.aggregate([
           { $match: { created_at: { $gte: getWindowStart(sparkWindow) }, ...userIdMatch('user_id') } },
@@ -335,20 +191,21 @@ export async function getLeaderboard(req, res, next) {
           { $sort: { score: -1 } },
           { $limit: limit },
         ])
-        sparkRows = agg.map((row) => ({ userId: row._id, score: row.score || 0 }))
+        sparkRows = agg.map((r) => ({ userId: r._id, score: r.score || 0 }))
       }
 
-      const candidateUserIds = sparkRows.map((row) => row.userId)
+      const candidateUserIds = sparkRows.map((r) => r.userId)
       const [displayNameById, statsById] = await Promise.all([
         getDisplayNameByUserId(candidateUserIds),
         getAnswerStatsByUser(candidateUserIds),
       ])
-      leaderboard = sparkRows.map((row) => ({
-        userId: row.userId,
-        displayName: displayNameById[row.userId] || 'User',
-        score: row.score,
-        answersCount: statsById[row.userId]?.answersCount || 0,
-        upvotesReceived: statsById[row.userId]?.upvotesReceived || 0,
+
+      leaderboard = sparkRows.map((r) => ({
+        userId: r.userId,
+        displayName: displayNameById[r.userId] || 'User',
+        score: r.score,
+        answersCount: statsById[r.userId]?.answersCount || 0,
+        upvotesReceived: statsById[r.userId]?.upvotesReceived || 0,
       }))
     }
 
