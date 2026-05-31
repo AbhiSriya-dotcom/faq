@@ -135,10 +135,12 @@ export async function reportContent({ targetType, targetId, reason, description 
 
 // ─── Leaderboard ───────────────────────────────────────────────────────────────
 
-export async function fetchLeaderboard({ type = 'spark', limit = 20 } = {}) {
+export async function fetchLeaderboard({ type = 'spark', limit = 20, window } = {}) {
   const params = new URLSearchParams({ type, limit })
+  if (window) params.set('window', window) // 'today' | 'monthly' (spark only)
   const { data } = await axisPrivate().get(`/api/leaderboard?${params}`)
-  return data.leaderboard || [] // [{ userId, displayName, score }]
+  // [{ userId, displayName, score, answersCount?, upvotesReceived? }]
+  return data.leaderboard || []
 }
 
 // ─── Notifications ───────────────────────────────────────────────────────────

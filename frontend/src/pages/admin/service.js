@@ -19,6 +19,19 @@ export async function logoutAdmin() {
   await axisPrivate().post('/api/auth/logout')
 }
 
+// ─── Queries management ──────────────────────────────────────────────────────
+
+export async function fetchAdminQuestions({ page = 1, limit = 10, search = '' } = {}) {
+  const params = new URLSearchParams({ page, limit, sort: 'latest' })
+  if (search.trim()) params.set('search', search.trim())
+  // Admins receive every question (all kinds/statuses) — see listQuestions.
+  const { data } = await axisPrivate().get(`/api/questions?${params}`)
+  return {
+    questions: data.questions || [],
+    pagination: data.pagination || { page, pages: 0, total: 0 },
+  }
+}
+
 // ─── FAQ management ──────────────────────────────────────────────────────────
 
 export async function fetchFAQs({ limit = 100 } = {}) {

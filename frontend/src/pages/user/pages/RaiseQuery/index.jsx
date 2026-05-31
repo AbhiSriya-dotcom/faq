@@ -42,12 +42,13 @@ function RaiseQueryPage() {
   useEffect(() => {
     fetchQuestionTags()
       .then(tags =>
-        setCategories(
-          (tags || []).map(t => ({
+        setCategories([
+          ...(tags || []).map(t => ({
             value: t.tag,
             label: t.tag.charAt(0).toUpperCase() + t.tag.slice(1),
           })),
-        ),
+          { value: 'others', label: 'Others' },
+        ]),
       )
       .catch(() => setCategories([]))
   }, [])
