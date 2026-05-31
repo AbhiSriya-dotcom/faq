@@ -159,10 +159,11 @@ function DashboardHeader({
         {showRaiseQuery && (
           <Button
             variant="secondary"
-            className="gap-1.5 rounded-lg border-transparent bg-brand/80 px-3 py-1.5 text-[8px] font-bold uppercase tracking-wide text-white hover:border-transparent hover:bg-brand-hover"
+            className="min-h-7 gap-1 rounded-lg border-transparent bg-brand/80 px-2.5 py-1 font-bold uppercase tracking-wide text-white hover:border-transparent hover:bg-brand-hover"
             onClick={onRaiseQuery}
           >
-            <PlusCircle className="h-3.5 w-3.5" strokeWidth={1.8} /> Raise New Query
+            <PlusCircle className="h-3 w-3" strokeWidth={1.8} />
+            <span className="text-[10px] leading-none">Raise New Query</span>
           </Button>
         )}
 
