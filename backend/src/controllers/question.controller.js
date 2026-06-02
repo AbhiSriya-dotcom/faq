@@ -568,3 +568,73 @@ export async function voteQuestion(req, res, next) {
     next(error)
   }
 }
+
+export async function getQuestionCounts(req, res, next) {
+  try {
+    const filter = {}
+
+    if (req.query.kind) {
+      filter.kind = req.query.kind
+    }
+
+    if (req.query.tag) {
+      // Selected categories filter over tags (comma-separated → match any)
+      const tags = String(req.query.tag).split(',').map((t) => t.trim()).filter(Boolean)
+      if (tags.length) {
+        filter.tags = tags.length > 1 ? { $in: tags } : tags[0]
+      }
+    }
+
+    if (req.query.search) {
+      // Keyword search over question text (title/body) and answer text
+      const search = new RegExp(escapeRegex(String(req.query.search)), 'i')
+      const answerQuestionIds = await Answer.find({ body: search }).distinct('question_id')
+      filter.$or = [
+        { title: search },
+        { body: search },
+        { question_id: { $in: answerQuestionIds } },
+      ]
+    }
+
+    // Support ?my=1 to fetch only the current user's questions
+    if (req.query.my === '1') {
+      filter.author_id = req.user.userId
+    }
+
+    if (!isAdmin(req)) {
+      filter.moderation_status = 'approved'
+      filter.status = { $ne: 'removed' }
+    }
+
+    // Parallel count operations for each tab
+    const [allCount, trendingCount, recentCount, unansweredCount, resolvedCount] = await Promise.all([
+      // All Queries
+      Question.countDocuments({ ...filter }),
+      // Trending (upvotes > 0)
+      Question.countDocuments({ ...filter, upvotes: { $gt: 0 } }),
+      // Recent (created in last 24h)
+      Question.countDocuments({
+        ...filter,
+        created_at: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      }),
+      // Unanswered (status = unanswered)
+      Question.countDocuments({ ...filter, status: 'unanswered' }),
+      // Resolved (status = closed)
+      Question.countDocuments({ ...filter, status: 'closed' }),
+    ])
+
+    res.json({
+      success: true,
+      counts: {
+        'All Queries': allCount,
+        'Trending': trendingCount,
+        'Recent': recentCount,
+        'Unanswered': unansweredCount,
+        'Resolved': resolvedCount,
+      },
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+

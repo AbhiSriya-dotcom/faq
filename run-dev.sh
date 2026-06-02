@@ -8,7 +8,7 @@ echo "  Starting Active Dev Environment"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 echo ""
-echo "▶ Starting backend (port 5000)..."
+echo "▶ Starting backend (port 5001)..."
 cd "$ROOT/backend"
 node src/server.js &
 BACKEND_PID=$!
@@ -26,7 +26,7 @@ echo ""
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Running"
-echo "  Backend  → http://localhost:5000"
+echo "  Backend  → http://localhost:5001"
 echo "  Frontend → http://localhost:5173"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

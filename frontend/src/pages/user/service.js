@@ -73,6 +73,21 @@ export async function fetchQuestions({
   return data
 }
 
+export async function fetchQuestionCounts({
+  search = '',
+  tag = '',
+  my = false,
+} = {}) {
+  const params = new URLSearchParams({ kind: 'community' })
+  if (search) params.set('search', search)
+  if (tag) params.set('tag', tag)
+  if (my) params.set('my', '1')
+
+  const { data } = await axisPrivate().get(`/api/questions/counts?${params}`)
+  return data
+}
+
+
 export async function voteQuestion(questionId) {
   const { data } = await axisPrivate().post(`/api/questions/${questionId}/vote`)
   return data

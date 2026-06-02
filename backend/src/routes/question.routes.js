@@ -5,6 +5,7 @@ import {
   createQuestion,
   deleteQuestion,
   getQuestionById,
+  getQuestionCounts,
   listPublishedFAQs,
   listQuestions,
   listQuestionTags,
@@ -144,6 +145,8 @@ router.get('/', checkRole('USER', 'RESOLVER', 'ADMIN'), listQuestions)
  *         description: Distinct tags with counts
  */
 router.get('/tags', checkRole('USER', 'RESOLVER', 'ADMIN'), listQuestionTags)
+
+router.get('/counts', checkRole('USER', 'RESOLVER', 'ADMIN'), getQuestionCounts)
 
 /**
  * @openapi
