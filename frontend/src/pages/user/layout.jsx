@@ -92,12 +92,12 @@ function UserLayout() {
 
   return (
     <div
-      className={`flex min-h-svh flex-col bg-bg-primary text-text-primary ${
+      className={`flex h-svh overflow-hidden flex-col bg-bg-primary text-text-primary ${
         isDark ? 'dark' : ''
       }`}
     >
       {/* Main row: LeftPane + content */}
-      <div className="flex flex-1">
+      <div className="flex flex-1 overflow-hidden">
         <LeftPane
           isCollapsed={isLeftPaneCollapsed}
           onToggleCollapse={() => setIsLeftPaneCollapsed(v => !v)}
@@ -114,7 +114,7 @@ function UserLayout() {
           }}
         />
 
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col overflow-hidden">
           <DashboardHeader
             user={user}
             initials={initials}
@@ -136,8 +136,9 @@ function UserLayout() {
             onLogout={handleLogout}
           />
 
-          <Outlet
-            context={{
+          <div className="flex-1 overflow-y-auto">
+            <Outlet
+              context={{
               user,
               sidebarNav,
               setSidebarNav,
@@ -150,11 +151,13 @@ function UserLayout() {
               tags,
             }}
           />
+            {/* Footer — appears at the bottom of the scrolled content */}
+            <div className="mt-auto">
+              <Footer />
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Footer — full width, outside content area */}
-      <Footer />
 
       {/* Notification sidebar */}
       <NotificationSidebar

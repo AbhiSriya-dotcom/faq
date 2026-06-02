@@ -10,7 +10,7 @@ const NAV_ITEMS = [
 function LeftPane({ isCollapsed, onToggleCollapse, activeNav, onNavigate }) {
   return (
     <aside
-      className={`relative flex shrink-0 flex-col border-r border-border bg-[#f8f9fa] pt-6 transition-all duration-300 dark:bg-bg-tertiary ${
+      className={`sticky top-0 h-svh overflow-y-auto flex shrink-0 flex-col border-r border-border bg-[#f8f9fa] pt-6 transition-all duration-300 dark:bg-bg-tertiary ${
         isCollapsed ? 'w-16' : 'w-64'
       }`}
     >

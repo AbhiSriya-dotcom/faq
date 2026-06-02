@@ -61,7 +61,7 @@ function DashboardHeader({
   const activeCount = localTags.length
 
   return (
-    <header className="relative flex items-center justify-between border-b border-border bg-[#f8f9fa] px-8 py-4 dark:bg-bg-card">
+    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-[#f8f9fa] px-8 py-4 dark:bg-bg-card">
 
       <div className="min-w-0 flex-1">
         {showSearch && (
