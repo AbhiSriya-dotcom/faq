@@ -97,9 +97,16 @@ async function main() {
   console.log(`Migrated ${migratedCount} FAQs from main database.`)
 
   // 2. Parse and ingest from URL markdown
-  const filePath = 'C:/Users/saisr/.gemini/antigravity/brain/8df82bdd-c9da-47fa-85e3-7dc10388681b/.system_generated/steps/407/content.md'
+  const filePath = process.argv[2] || process.env.FAQ_CONTENT_FILE
+  if (!filePath) {
+    throw new Error(
+      'FAQ content file path not provided. Pass it as a CLI argument:\n' +
+      '  node backend/src/scripts/ingest-url-faqs.js <path-to-content.md>\n' +
+      'Or set FAQ_CONTENT_FILE in backend/.env'
+    )
+  }
   if (!fs.existsSync(filePath)) {
-    throw new Error(`Downloaded content file not found at ${filePath}`)
+    throw new Error(`FAQ content file not found at: ${filePath}`)
   }
 
   const content = fs.readFileSync(filePath, 'utf8')

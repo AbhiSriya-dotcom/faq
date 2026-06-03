@@ -147,6 +147,9 @@ export function getQuestionStatusFilter(status) {
 export async function buildQuestionBaseFilter(req) {
   const filter = {}
 
+  // Default to 'community' when kind is not specified. This is a breaking change
+  // from previous behaviour where unspecified kind returned all kinds. Pass ?kind=faq
+  // explicitly to include FAQs, or ?kind=community (or omit) for community questions only.
   filter.kind = req.query.kind || 'community'
 
   if (req.query.tag) {
