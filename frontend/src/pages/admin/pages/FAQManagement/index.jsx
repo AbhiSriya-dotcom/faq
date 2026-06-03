@@ -4,6 +4,7 @@ import Modal from '../../../../components/Modal/Modal'
 import Button from '../../../../components/Button/Button'
 import { notifyError, notifySuccess } from '../../../../lib/notify'
 import { fetchFAQs, updateFAQ, deleteFAQ, createFAQ, fetchTags, createTag, renameTag, deleteTag } from '../../service'
+import { queryClient } from '../../../../lib/queryClient'
 
 const EMPTY_FORM = { title: '', body: '', tags: '' }
 const PAGE_SIZE = 10
@@ -122,7 +123,7 @@ function FAQManagementView() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      setFaqs(await fetchFAQs({ limit: 100 }))
+      setFaqs(await fetchFAQs({ limit: 1000 }))
     } catch {
       setFaqs([])
       notifyError('Could not load FAQs.')
@@ -166,6 +167,7 @@ function FAQManagementView() {
         tags: createForm.tags.split(',').map((t) => t.trim()).filter(Boolean),
       })
       setFaqs((prev) => [created, ...prev])
+      queryClient.invalidateQueries({ queryKey: ['landing-faqs'] })
       notifySuccess('FAQ created.')
       closeCreate()
     } catch {
@@ -189,6 +191,7 @@ function FAQManagementView() {
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
       })
       setFaqs((prev) => prev.map((f) => (f.question_id === editing.question_id ? { ...f, ...updated } : f)))
+      queryClient.invalidateQueries({ queryKey: ['landing-faqs'] })
       notifySuccess('FAQ updated.')
       closeEdit()
     } catch {
@@ -203,6 +206,7 @@ function FAQManagementView() {
     try {
       await deleteFAQ(deleting.question_id)
       setFaqs((prev) => prev.filter((f) => f.question_id !== deleting.question_id))
+      queryClient.invalidateQueries({ queryKey: ['landing-faqs'] })
       notifySuccess('FAQ deleted.')
       setDeleting(null)
     } catch {

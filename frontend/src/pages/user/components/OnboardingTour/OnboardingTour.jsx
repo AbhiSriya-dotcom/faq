@@ -74,7 +74,7 @@ function OnboardingTour({ userId, isActive, onClose }) {
 
           const spaceBelow = window.innerHeight - r.bottom
           const spaceAbove = r.top
-          let tooltipTop = 0
+          let tooltipTop
           let tooltipLeft = r.left + r.width / 2 - 160 // Center 320px tooltip horizontally
 
           // Clamp left position to viewport boundaries
