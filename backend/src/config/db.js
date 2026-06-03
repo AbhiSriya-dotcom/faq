@@ -4,16 +4,18 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import dns from "dns";
 
-try {
-  dns.setServers(["8.8.8.8", "1.1.1.1"]);
-} catch (e) {
-  // Ignore errors setting custom DNS
-}
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+
+if (process.env.MONGODB_USE_CUSTOM_DNS === "true") {
+  try {
+    dns.setServers(["8.8.8.8", "1.1.1.1"]);
+  } catch (e) {
+    console.warn(`Failed to set custom DNS servers (8.8.8.8 / 1.1.1.1): ${e.message}`);
+  }
+}
 
 const getMongoUri = () =>
   process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;

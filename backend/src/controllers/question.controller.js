@@ -147,6 +147,9 @@ export function getQuestionStatusFilter(status) {
 export async function buildQuestionBaseFilter(req) {
   const filter = {}
 
+  // BREAKING CHANGE: If no kind parameter is supplied, default query results to
+  // 'community' questions rather than returning both. If you need FAQs, you must
+  // explicitly pass ?kind=faq.
   filter.kind = req.query.kind || 'community'
 
   if (req.query.tag) {
