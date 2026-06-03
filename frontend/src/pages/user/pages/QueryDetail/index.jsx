@@ -25,7 +25,61 @@ function initialsOf(name = '') {
 }
 
 function fmtDate(d) {
-  return d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''
+  if (!d) return ''
+  const date = new Date(d)
+  if (Number.isNaN(date.getTime())) return ''
+
+  // Format the time part in 24-hour IST format (HH:MM)
+  const timePart = date.toLocaleTimeString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+
+  // Get date parts in Asia/Kolkata timezone to compare days correctly
+  const formatter = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  })
+  const parts = formatter.formatToParts(date)
+  const partMap = Object.fromEntries(parts.map(p => [p.type, p.value]))
+  
+  const targetYear = parseInt(partMap.year, 10)
+  const targetMonth = parseInt(partMap.month, 10) - 1 // 0-indexed
+  const targetDay = parseInt(partMap.day, 10)
+
+  // Get current date parts in Asia/Kolkata timezone
+  const now = new Date()
+  const nowParts = formatter.formatToParts(now)
+  const nowPartMap = Object.fromEntries(nowParts.map(p => [p.type, p.value]))
+  const nowYear = parseInt(nowPartMap.year, 10)
+  const nowMonth = parseInt(nowPartMap.month, 10) - 1
+  const nowDay = parseInt(nowPartMap.day, 10)
+
+  // Create clean Date objects representing just the calendar days in IST
+  const targetDateIST = new Date(targetYear, targetMonth, targetDay)
+  const nowDateIST = new Date(nowYear, nowMonth, nowDay)
+
+  const diffTime = nowDateIST.getTime() - targetDateIST.getTime()
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+
+  // Format month and day
+  const dateOptions = { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' }
+  if (targetYear !== nowYear) {
+    dateOptions.year = 'numeric'
+  }
+  const datePart = date.toLocaleDateString('en-IN', dateOptions)
+
+  if (diffDays === 0) {
+    return `Today at ${timePart}`
+  } else if (diffDays === 1) {
+    return `Yesterday at ${timePart}`
+  } else {
+    return `${datePart} at ${timePart}`
+  }
 }
 
 function QueryDetailPage() {
