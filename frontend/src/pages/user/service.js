@@ -1,5 +1,7 @@
 import { axisPrivate } from '../../api/axios'
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 export function timeAgo(dateStr) {
@@ -93,6 +95,15 @@ export async function voteQuestion(questionId) {
   return data
 }
 
+export function createDashboardEventSource({ my = false } = {}) {
+  const params = new URLSearchParams()
+  if (my) params.set('my', '1')
+
+  return new EventSource(`${API_BASE_URL}/api/dashboard/events?${params}`, {
+    withCredentials: true,
+  })
+}
+
 export async function fetchQuestionTags() {
   const { data } = await axisPrivate().get('/api/questions/tags')
   return data.tags || []
@@ -142,6 +153,26 @@ export async function postComment(answerId, body, parentId = null) {
     body,
     parentId,
   })
+  return data
+}
+
+export async function updateComment(commentId, body) {
+  const { data } = await axisPrivate().patch(`/api/comments/${commentId}`, { body })
+  return data
+}
+
+export async function deleteComment(commentId) {
+  const { data } = await axisPrivate().delete(`/api/comments/${commentId}`)
+  return data
+}
+
+export async function updateAnswer(answerId, body) {
+  const { data } = await axisPrivate().patch(`/api/answers/${answerId}`, { body })
+  return data
+}
+
+export async function deleteAnswer(answerId) {
+  const { data } = await axisPrivate().delete(`/api/answers/${answerId}`)
   return data
 }
 

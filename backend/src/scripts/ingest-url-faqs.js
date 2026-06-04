@@ -1,7 +1,5 @@
 import 'dotenv/config'
 import fs from 'fs'
-import os from 'os'
-import path from 'path'
 import { randomUUID } from 'crypto'
 import connectDB, { faqConnection } from '../config/db.js'
 import Question from '../models/question.model.js'
@@ -99,9 +97,7 @@ async function main() {
   console.log(`Migrated ${migratedCount} FAQs from main database.`)
 
   // 2. Parse and ingest from URL markdown
-  const homeDir = os.homedir()
-  const defaultPath = path.join(homeDir, '.gemini/antigravity/brain/8df82bdd-c9da-47fa-85e3-7dc10388681b/.system_generated/steps/407/content.md')
-  const filePath = process.argv[2] || process.env.FAQ_CONTENT_FILE || defaultPath
+  const filePath = process.argv[2] || process.env.FAQ_CONTENT_FILE
   if (!filePath) {
     throw new Error(
       'FAQ content file path not provided. Pass it as a CLI argument:\n' +

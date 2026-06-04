@@ -8,6 +8,7 @@ import { QuestionView } from '../models/question_view.model.js'
 import User from '../models/user.model.js'
 import UserProfile from '../models/user-profile.model.js'
 import Vote from '../models/vote.model.js'
+import { publishDomainEvent } from '../services/domain-events.service.js'
 import { awardSpark, reserveBounty } from '../services/spark.service.js'
 import {
   createHttpError,
@@ -263,6 +264,12 @@ export async function listQuestions(req, res, next) {
       filter.question_id = req.query.id
     }
 
+    if (req.query.hasExpertAnswer === 'true') {
+      filter.has_expert_answer = true
+    } else if (req.query.hasExpertAnswer === 'false') {
+      filter.has_expert_answer = false
+    }
+
     if (!isAdmin(req)) {
       // moderation_status is applied in buildQuestionBaseFilter; resolve the
       // soft-delete visibility against whatever status filter is in effect.
@@ -515,7 +522,7 @@ export async function deleteQuestion(req, res, next) {
 
     question.status = 'removed'
     question.moderation_status = 'rejected'
-    question.removal_reason = req.body.reason || ''
+    question.removal_reason = req.body?.reason || ''
     await question.save()
 
     res.json({ success: true, message: 'Question deleted' })
@@ -667,6 +674,13 @@ export async function voteQuestion(req, res, next) {
       { $set: { upvotes } },
     )
 
+    publishDomainEvent('question.vote.changed', {
+      questionId: question.question_id,
+      authorId: question.author_id,
+      upvotes,
+      hasVoted: !existingVote,
+    })
+
     res.json({
       success: true,
       upvotes,
@@ -718,4 +732,3 @@ export async function getQuestionCounts(req, res, next) {
     next(error)
   }
 }
-
