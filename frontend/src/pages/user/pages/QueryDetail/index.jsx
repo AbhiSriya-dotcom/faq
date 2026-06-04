@@ -585,13 +585,16 @@ function ThreadItem({
   const [editBusy, setEditBusy] = useState(false)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  // Captured once on mount; the 15-min edit window is generous and the backend
+  // enforces the real limit, so we avoid calling Date.now() during render.
+  const [mountedAt] = useState(() => Date.now())
 
   const isEditable = () => {
     if (!isSelf) return false
     if (hidden) return false
     if (!createdAt) return false
     const createdTime = new Date(createdAt).getTime()
-    const diffMs = Date.now() - createdTime
+    const diffMs = mountedAt - createdTime
     return diffMs <= 15 * 60 * 1000
   }
 

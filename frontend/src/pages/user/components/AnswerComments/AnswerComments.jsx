@@ -86,6 +86,10 @@ function AnswerComments({ answerId, comments = [], currentUserId, locked = false
   const [commentToDelete, setCommentToDelete] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
 
+  // Captured once on mount; the 15-min edit window is generous and the backend
+  // enforces the real limit, so we avoid calling Date.now() during render.
+  const [mountedAt] = useState(() => Date.now())
+
   const topLevel = comments.filter(c => !c.parent_id)
   const repliesOf = id => comments.filter(c => c.parent_id === id)
 
@@ -96,7 +100,7 @@ function AnswerComments({ answerId, comments = [], currentUserId, locked = false
     if (c.author_id !== currentUserId) return false
     if (c.is_deleted || c.moderation_state !== 'visible') return false
     const createdTime = new Date(c.created_at).getTime()
-    const diffMs = Date.now() - createdTime
+    const diffMs = mountedAt - createdTime
     return diffMs <= 15 * 60 * 1000
   }
 

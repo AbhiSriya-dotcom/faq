@@ -228,13 +228,13 @@ function AdminOnboardingTour({ userId, isActive, onClose }) {
 
         const spaceBelow = window.innerHeight - r.bottom
         const spaceAbove = r.top
-        let tooltipTop = 0
+        let tooltipTop
         let tooltipLeft = r.left + r.width / 2 - 175 // Center 350px tooltip horizontally
 
         // Clamp left position to viewport boundaries
         tooltipLeft = Math.max(16, Math.min(window.innerWidth - 366, tooltipLeft))
 
-        let tooltipTransform = 'none'
+        let tooltipTransform
         if (spaceBelow > 260 || spaceBelow > spaceAbove) {
           // Position below target
           tooltipTop = r.bottom + 12
